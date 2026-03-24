@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quiz Quest | Score Review Edition</title>
+    <style>
+        :root { --bg: #0f0f0f; --card: #1a1a1b; --gold: #d4af37; --text: #e0e0e0; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; text-align: center; margin: 0; padding: 20px; }
+        .gold-t { color: var(--gold); }
+        .hidden { display: none; }
+        
+        /* Dashboard */
+        .header { max-width: 800px; margin: 20px auto; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 800px; margin: 40px auto; }
+        .card { background: var(--card); border: 1px solid #444; padding: 25px; border-radius: 12px; cursor: pointer; transition: 0.3s; }
+        .card:hover { border-color: var(--gold); transform: translateY(-5px); }
+        
+        /* Quiz & Results */
+        #quiz-screen, #results-screen { max-width: 600px; margin: 50px auto; background: var(--card); padding: 40px; border-radius: 20px; border: 1px solid var(--gold); }
+        .opt-btn { display: block; width: 100%; padding: 15px; margin: 10px 0; background: #111; border: 1px solid #444; color: white; cursor: pointer; border-radius: 8px; text-align: left; }
+        .back-btn { background: none; border: 1px solid var(--gold); color: var(--gold); padding: 10px 20px; cursor: pointer; margin-top: 20px; border-radius: 5px; font-weight: bold; }
+        
+        .review-item { text-align: left; border-bottom: 1px solid #333; padding: 10px 0; }
+        .ans-label { color: #4caf50; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="dashboard">
+        <div class="header"><h1 class="gold-t">QUIZ QUEST</h1></div>
+        <div class="grid">
+            <div class="card" onclick="startQuiz('history')"><h3 class="gold-t">HISTORY</h3><p>Click to Play</p></div>
+            <div class="card" onclick="startQuiz('sports')"><h3 class="gold-t">SPORTS</h3><p>Click to Play</p></div>
+            <div class="card" onclick="startQuiz('mystery')"><h3 class="gold-t">MYSTERY</h3><p>Click to Play</p></div>
+            <div class="card" onclick="startQuiz('tech')"><h3 class="gold-t">TECH</h3><p>Click to Play</p></div>
+        </div>
+    </div>
+
+    <div id="quiz-screen" class="hidden">
+        <h2 id="q-text" class="gold-t"></h2>
+        <div id="options-box"></div>
+    </div>
+
+    <div id="results-screen" class="hidden">
+        <h1 class="gold-t">Category Finished!</h1>
+        <h2 id="final-score" style="font-size: 40px;">0 / 5</h2>
+        <div id="answer-review"></div>
+        <button class="back-btn" onclick="location.reload()">Back to Home</button>
+    </div>
+
+    <script>
+        const sndCorrect = new Audio('https://actions.google.com/sounds/v1/cartoon/clink_vibrant.ogg');
+        const sndWrong = new Audio('https://actions.google.com/sounds/v1/animations/thump.ogg');
+
+        const questions = {
+            history: [
+                { q: "First Prime Minister of India?", a: "Jawaharlal Nehru", o: ["Mahatma Gandhi", "Jawaharlal Nehru", "Sardar Patel", "Dr. B.R. Ambedkar"] },
+                { q: "Great Pyramid of Giza location?", a: "Egypt", o: ["Italy", "Greece", "Egypt", "Mexico"] },
+                { q: "Year World War II ended?", a: "1945", o: ["1918", "1939", "1945", "1950"] },
+                { q: "Famous Queen of Ancient Egypt?", a: "Cleopatra", o: ["Nefertiti", "Cleopatra", "Elizabeth I", "Marie Antoinette"] },
+                { q: "Which empire built the Taj Mahal?", a: "Mughal Empire", o: ["Maratha Empire", "British Empire", "Mughal Empire", "Maurya Empire"] }
+            ],
+            sports: [
+                { q: "Players on a standard Football team?", a: "11", o: ["9", "10", "11", "15"] },
+                { q: "The 'Gentleman's Game'?", a: "Cricket", o: ["Football", "Cricket", "Tennis", "Hockey"] },
+                { q: "Sport using 'Love', 'Deuce', 'Ace'?", a: "Tennis", o: ["Basketball", "Cricket", "Tennis", "Golf"] },
+                { q: "The 'God of Cricket'?", a: "Sachin Tendulkar", o: ["Virat Kohli", "MS Dhoni", "Sachin Tendulkar", "Brian Lara"] },
+                { q: "Olympics held every __ years?", a: "4", o: ["2", "3", "4", "5"] }
+            ],
+            mystery: [
+                { q: "The 'Red Planet'?", a: "Mars", o: ["Venus", "Mars", "Jupiter", "Saturn"] },
+                { q: "Hardest natural substance?", a: "Diamond", o: ["Gold", "Iron", "Diamond", "Granite"] },
+                { q: "The 'Ship of the Desert'?", a: "Camel", o: ["Horse", "Elephant", "Camel", "Lion"] },
+                { q: "Number of continents?", a: "7", o: ["5", "6", "7", "8"] },
+                { q: "Largest ocean on Earth?", a: "Pacific Ocean", o: ["Atlantic", "Indian", "Arctic", "Pacific Ocean"] }
+            ],
+            tech: [
+                { q: "Who produces Windows?", a: "Microsoft Corporation", o: ["Google", "Microsoft Corporation", "Apple", "Oracle"] },
+                { q: "Founder of Apple?", a: "Steve Jobs", o: ["Steve Jobs", "Bill Gates", "Elon Musk", "Mark Zuckerberg"] },
+                { q: "Silicon City of India?", a: "Bangalore", o: ["Pune", "Hyderabad", "Bangalore", "Delhi"] },
+                { q: "Founder of Microsoft?", a: "Bill Gates", o: ["Bill Gates", "Steve Jobs", "Larry Page", "Jeff Bezos"] },
+                { q: "Parent company of Google?", a: "Alphabet Inc", o: ["Meta", "Alphabet Inc", "Microsoft", "Amazon"] }
+            ]
+        };
+
+        let currentCat = '';
+        let currentIdx = 0;
+        let score = 0;
+
+        function startQuiz(cat) {
+            currentCat = cat;
+            currentIdx = 0;
+            score = 0;
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            showQ();
+        }
+
+        function showQ() {
+            let data = questions[currentCat][currentIdx];
+            document.getElementById('q-text').innerText = data.q;
+            let h = '';
+            data.o.forEach(opt => {
+                h += `<button class="opt-btn" onclick="check('${opt}', this)">${opt}</button>`;
+            });
+            document.getElementById('options-box').innerHTML = h;
+        }
+
+        function check(choice, btn) {
+            let correct = questions[currentCat][currentIdx].a;
+            let btns = document.getElementsByClassName('opt-btn');
+            for(let b of btns) b.style.pointerEvents = 'none';
+
+            if(choice === correct) {
+                sndCorrect.play();
+                btn.style.backgroundColor = "#2e7d32";
+                score++;
+            } else {
+                sndWrong.play();
+                btn.style.backgroundColor = "#c62828";
+            }
+
+            currentIdx++;
+            setTimeout(() => {
+                if(currentIdx < 5) {
+                    showQ();
+                } else {
+                    showResults();
+                }
+            }, 800);
+        }
+
+        function showResults() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('results-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = `${score} / 5 Correct`;
+            
+            let reviewHtml = '<h3 class="gold-t" style="margin-top:30px;">Review Answers:</h3>';
+            questions[currentCat].forEach(item => {
+                reviewHtml += `<div class="review-item">
+                    <strong>Q: ${item.q}</strong><br>
+                    <span class="ans-label">Correct Answer: ${item.a}</span>
+                </div>`;
+            });
+            document.getElementById('answer-review').innerHTML = reviewHtml;
+        }
+    </script>
+</body>
+</html>
